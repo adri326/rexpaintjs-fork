@@ -1,0 +1,15 @@
+{
+  "name": "rexpaintjs",
+  "version": "0.1.0",
+  "description": "A library to load REXPaint ascii-art files",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github.com/chiguireitor/rexpaintjs.git"
+  },
+  "author": "John \"Chiguireitor\" Villar",
+  "license": "ISC"
+}
