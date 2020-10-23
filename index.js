@@ -72,24 +72,24 @@ const loadInflatedBuffer = (buffer) => {
     // with this terrible, terrible hack
     let v = this.readInt8(offset)
 
-    return (v<0)?256+v:v //(v >>> 0) && 0xFF
+    return v //(v<0)?256+v:v //(v >>> 0) && 0xFF
   }
-  ob.version = buffer.readInt32(0)
-  let numLayers = buffer.readInt32(4)
+  ob.version = buffer.readUInt32LE(0)
+  let numLayers = buffer.readUInt32LE(4)
 
   let curOffset = 8
   for (let i=0; i < numLayers; i++) {
     let layer = {}
-    layer.width = buffer.readInt32(curOffset)
+    layer.width = buffer.readUInt32LE(curOffset)
     curOffset += 4
-    layer.height = buffer.readInt32(curOffset)
+    layer.height = buffer.readUInt32LE(curOffset)
     curOffset += 4
 
     let raster = Array(layer.height * layer.width)
-    for (let y=0; y < layer.height; y++) {
-      for (let x=0; x < layer.width; x++) {
+    for (let x=0; x < layer.width; x++) {
+      for (let y=0; y < layer.height; y++) {
         let pix = {}
-        pix.asciiCode = buffer.readInt32(curOffset)
+        pix.asciiCode = buffer.readUInt32LE(curOffset)
         curOffset += 4
         pix.fg = {}
 
@@ -106,7 +106,8 @@ const loadInflatedBuffer = (buffer) => {
 
         pix.transparent = pix.bg.r === 255 && pix.bg.g === 0 && pix.bg.b === 255
 
-        raster[x * layer.height + y] = pix // REX Paint stores tiles in column major format, go figure
+        //raster[x * layer.height + y] = pix // REX Paint stores tiles in column major format, go figure
+        raster[x + layer.width * y] = pix // REX Paint stores tiles in column major format, go figure
       }
     }
 
