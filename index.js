@@ -72,7 +72,7 @@ const loadInflatedBuffer = (buffer) => {
     // with this terrible, terrible hack
     let v = this.readInt8(offset)
 
-    return v //(v<0)?256+v:v //(v >>> 0) && 0xFF
+    return (v<0)?256+v:v //(v >>> 0) && 0xFF
   }
   ob.version = buffer.readUInt32LE(0)
   let numLayers = buffer.readUInt32LE(4)
@@ -106,8 +106,7 @@ const loadInflatedBuffer = (buffer) => {
 
         pix.transparent = pix.bg.r === 255 && pix.bg.g === 0 && pix.bg.b === 255
 
-        //raster[x * layer.height + y] = pix // REX Paint stores tiles in column major format, go figure
-        raster[x + layer.width * y] = pix // REX Paint stores tiles in column major format, go figure
+        raster[x + layer.width * y] = pix
       }
     }
 
@@ -117,48 +116,6 @@ const loadInflatedBuffer = (buffer) => {
 
   return ob
 }
-
-/*RexSprite.prototype.draw = function(level, x, y) {
-    var blockLayer = (this.layers.length > 1)?this.layers[this.layers.length-2]:undefined
-    var logicLayer = (this.layers.length > 2)?this.layers[this.layers.length-3]:undefined
-    var tilesLayer = (this.layers.length > 0)?this.layers[this.layers.length-1]:undefined
-
-    if (tilesLayer) {
-        var layer = tilesLayer
-
-        for (var iy=0; iy < layer.height; iy++) {
-            var ty = y + iy
-            if ((ty >= 0) && (ty < level.length)) {
-                var row = level[ty]
-                var py = iy * layer.width
-
-                for (var ix=0; ix < layer.width; ix++) {
-                    var tx = x + ix
-
-                    if ((tx >= 0) && (tx < row.length)) {
-                        levelPixel = row[tx]
-
-                        var pix = layer.raster[ix + py]
-
-                        if (!((pix.bg.r == 255)&&(pix.bg.g == 0)&&(pix.bg.b == 255))) {
-                            var fg = rgbObj2cssHex(pix.fg)
-                            var bg = rgbObj2cssHex(pix.bg)
-
-                            // #DRAW TODO: Change this to your level format
-                            levelPixel.tile = pix.asciiCode
-                            levelPixel.fg = fg
-                            levelPixel.bg = bg
-
-                            if (blockLayer) {
-                                levelPixel.forcePassable = blockLayer.raster[ix + py].asciiCode
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}*/
 
 module.exports = {
   fromBuffer
