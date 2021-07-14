@@ -313,6 +313,15 @@ class Color {
       }
     }
   }
+
+  toJSON() {
+    return {
+      g: this._g,
+      b: this._b,
+      r: this._r,
+      hex: rgb2hex(this._r, this._g, this._b)
+    };
+  }
 }
 
 function rgb2hex(r, g, b) {

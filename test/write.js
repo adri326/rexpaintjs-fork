@@ -7,7 +7,6 @@ const zlip = require("zlib");
   let buffer = fs.readFileSync("test.xp");
   let rp = await rexpaint.fromBuffer(buffer);
   let exported = await rexpaint.toBuffer(rp);
-  fs.writeFileSync("./test-exp.xp", exported);
 
   zlip.unzip(buffer, (err, expected) => {
     assert.equal(err, null);

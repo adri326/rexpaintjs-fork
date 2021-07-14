@@ -4,9 +4,13 @@ const assert = require("assert");
 
 (async () => {
   let rp = await rexpaint.fromBuffer(fs.readFileSync("test.xp"));
-  let expected = JSON.parse(fs.readFileSync("test/expected.json", "utf8"));
+  let expectedJSON = fs.readFileSync("test/expected.json", "utf8");
+  let expected = JSON.parse(expectedJSON);
 
   compareImage(rp, expected);
+
+  let actualJSON = JSON.stringify(rp);
+  assert.deepStrictEqual(JSON.parse(actualJSON), expected);
 })();
 
 function compareImage(actual, expected) {
