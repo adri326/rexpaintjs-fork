@@ -1,15 +1,15 @@
 {
-  "name": "rexpaintjs",
-  "version": "0.1.2",
-  "description": "A library to load REXPaint ascii-art files",
+  "name": "rexpaintjs-fork",
+  "version": "0.1.3",
+  "description": "A fork of rexpaintjs, a library to load REXPaint ascii-art files",
   "main": "index.js",
   "scripts": {
     "test": "./test/test.js"
   },
   "repository": {
     "type": "git",
-    "url": "github.com/chiguireitor/rexpaintjs.git"
+    "url": "github.com/adri326/rexpaintjs-fork.git"
   },
-  "author": "John \"Chiguireitor\" Villar",
+  "author": ["John \"Chiguireitor\" Villar", "Shad Amethyst"],
   "license": "ISC"
 }
