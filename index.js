@@ -193,15 +193,55 @@ class Color {
     Expects `r`, `g` and `b` to be integers from 0 to 255.
   **/
   constructor(r, g, b) {
-    this.r = +r;
-    this.g = +g;
-    this.b = +b;
+    this._r = +r;
+    this._g = +g;
+    this._b = +b;
 
-    if (!Number.isInteger(this.r) || this.r < 0 || this.r > 255) throw new Error(`Expected 'r' to be a positive integer, got ${r}`);
-    if (!Number.isInteger(this.g) || this.g < 0 || this.g > 255) throw new Error(`Expected 'g' to be a positive integer, got ${g}`);
-    if (!Number.isInteger(this.b) || this.b < 0 || this.b > 255) throw new Error(`Expected 'b' to be a positive integer, got ${b}`);
+    if (!Number.isInteger(this._r) || this._r < 0 || this._r > 255) throw new Error(`Expected 'r' to be a positive integer, got ${r}`);
+    if (!Number.isInteger(this._g) || this._g < 0 || this._g > 255) throw new Error(`Expected 'g' to be a positive integer, got ${g}`);
+    if (!Number.isInteger(this._b) || this._b < 0 || this._b > 255) throw new Error(`Expected 'b' to be a positive integer, got ${b}`);
+  }
 
-    this.hex = rgb2hex(r, g, b);
+  get r() {
+    return this._r;
+  }
+
+  set r(value) {
+    this._r = +value;
+    if (!Number.isInteger(this._r) || this._r < 0 || this._r > 255) throw new Error(`Expected 'r' to be a positive integer, got ${value}`);
+  }
+
+  get g() {
+    return this._g;
+  }
+
+  set g(value) {
+    this._g = +value;
+    if (!Number.isInteger(this._g) || this._g < 0 || this._g > 255) throw new Error(`Expected 'g' to be a positive integer, got ${value}`);
+  }
+
+  get b() {
+    return this._b;
+  }
+
+  set b(value) {
+    this._b = +value;
+    if (!Number.isInteger(this._b) || this._b < 0 || this._b > 255) throw new Error(`Expected 'b' to be a positive integer, got ${value}`);
+  }
+
+  get hex() {
+    return rgb2hex(this._r, this._g, this._b);
+  }
+
+  set hex(value) {
+    if (typeof value === "string") {
+      let match = /^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(value);
+      if (match) {
+        this._r = Number.parseInt(match[1], 16);
+        this._g = Number.parseInt(match[2], 16);
+        this._b = Number.parseInt(match[3], 16);
+      }
+    }
   }
 }
 
