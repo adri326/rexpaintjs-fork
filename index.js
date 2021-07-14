@@ -8,76 +8,51 @@
  * Twitter: @johnvillarz
  * Telegram: @chiguireitor
  *
- * See LICENSE for licensing details (tl;dr: ISC License)
+ * Cleaned up by Shad Amethyst
  *
- * Like this! Follow me on social networks & send some Bitcoin my way if you want ;)
- *
- * BTC: 3H6uQfxccMRBCMyCE4u4yzEDMY4c61fFxC
+ * See LICENSE for licensing details
  */
 const zlib = require('zlib')
 
-function rgbObj2cssHex(o) {
-    var r = o.r.toString(16)
-    var g = o.g.toString(16)
-    var b = o.b.toString(16)
-
-    if (r.length < 2) {
-        r = '0' + r
-    }
-
-    if (g.length < 2) {
-        g = '0' + g
-    }
-
-    if (b.length < 2) {
-        b = '0' + b
-    }
-
-    return r + g + b
+class Color {
+  constructor(r, g, b) {
+    this.r = r
+    this.g = g
+    this.b = b
+    this.hex = rgb2hex(r, g, b)
+  }
 }
 
-const fromBuffer = (buf, cb) => {
+function fromBuffer(buffer, callback) {
   let p = new Promise((resolve, reject) => {
-    zlib.unzip(buf, (err, buffer) => {
-      if (!err) {
-        try {
-          let ob = loadInflatedBuffer(buffer)
-          resolve(ob)
-        } catch (e) {
-          reject(e)
-        }
-      } else {
-        reject(err)
+    zlib.unzip(buffer, (err, inflated) => {
+      if (err) reject(err)
+      try {
+        let res = loadInflatedBuffer(inflated)
+        resolve(res)
+      } catch (e) {
+        reject(e)
       }
     })
   })
 
-  if (!cb) {
+  if (!callback) {
     return p
   } else {
-    p.then(ob => cb(null, ob)).catch(e => cb(e))
+    p.then(res => callback(null, res)).catch(e => callback(e))
   }
 }
 
-const loadInflatedBuffer = (buffer) => {
-  let ob = {
-    version: 0,
+function loadInflatedBuffer(buffer) {
+  let res = {
+    version: buffer.readUInt32LE(0),
     layers: []
   }
 
-  buffer.readInt32 = buffer.readInt32LE
-  buffer.fixedReadUint8 = function(offset) {
-    // There's a bug in readUint8 that damages the buffer, so
-    // we read the two's complement and then clear the sign
-    // with this terrible, terrible hack
-    let v = this.readInt8(offset)
-
-    return (v<0)?256+v:v //(v >>> 0) && 0xFF
-  }
-  ob.version = buffer.readUInt32LE(0)
   let numLayers = buffer.readUInt32LE(4)
 
   let curOffset = 8
+
   for (let i=0; i < numLayers; i++) {
     let layer = {}
     layer.width = buffer.readUInt32LE(curOffset)
@@ -85,38 +60,55 @@ const loadInflatedBuffer = (buffer) => {
     layer.height = buffer.readUInt32LE(curOffset)
     curOffset += 4
 
-    let raster = Array(layer.height * layer.width)
-    for (let x=0; x < layer.width; x++) {
-      for (let y=0; y < layer.height; y++) {
-        let pix = {}
-        pix.asciiCode = buffer.readUInt32LE(curOffset)
+    let raster = new Array(layer.height * layer.width)
+    for (let x = 0; x < layer.width; x++) {
+      for (let y = 0; y < layer.height; y++) {
+        let pixel = {}
+        pixel.asciiCode = buffer.readUInt32LE(curOffset)
         curOffset += 4
-        pix.fg = {}
 
-        pix.fg.r = buffer.fixedReadUint8(curOffset++)
-        pix.fg.g = buffer.fixedReadUint8(curOffset++)
-        pix.fg.b = buffer.fixedReadUint8(curOffset++)
-        pix.fg.hex = rgbObj2cssHex(pix.fg)
+        let r = buffer.readUInt8(curOffset++)
+        let g = buffer.readUInt8(curOffset++)
+        let b = buffer.readUInt8(curOffset++)
+        pixel.fg = new Color(r, g, b);
 
-        pix.bg = {}
-        pix.bg.r = buffer.fixedReadUint8(curOffset++)
-        pix.bg.g = buffer.fixedReadUint8(curOffset++)
-        pix.bg.b = buffer.fixedReadUint8(curOffset++)
-        pix.bg.hex = rgbObj2cssHex(pix.bg)
+        r = buffer.readUInt8(curOffset++)
+        g = buffer.readUInt8(curOffset++)
+        b = buffer.readUInt8(curOffset++)
+        pixel.bg = new Color(r, g, b)
 
-        pix.transparent = pix.bg.r === 255 && pix.bg.g === 0 && pix.bg.b === 255
+        pixel.transparent = pixel.bg.r === 255 && pixel.bg.g === 0 && pixel.bg.b === 255
 
-        raster[x + layer.width * y] = pix
+        raster[x + layer.width * y] = pixel
       }
     }
 
     layer.raster = raster
-    ob.layers.push(layer)
+    res.layers.push(layer)
   }
 
-  return ob
+  return res
 }
 
-module.exports = {
-  fromBuffer
+function rgb2hex(r, g, b) {
+    let sr = r.toString(16)
+    let sg = g.toString(16)
+    let sb = b.toString(16)
+
+    if (sr.length < 2) {
+        sr = '0' + sr
+    }
+
+    if (sg.length < 2) {
+        sg = '0' + sg
+    }
+
+    if (sb.length < 2) {
+        sb = '0' + sb
+    }
+
+    return sr + sg + sb
 }
+
+module.exports = fromBuffer
+module.exports.fromBuffer = fromBuffer
