@@ -37,23 +37,18 @@ function fromBuffer(buffer, callback) {
 }
 
 function loadInflatedBuffer(buffer) {
-  let res = {
-    version: buffer.readUInt32LE(0),
-    layers: []
-  };
+  let version = buffer.readUInt32LE(0);
+  let res = new Image(version);
 
   let numLayers = buffer.readUInt32LE(4);
-
   let curOffset = 8;
-
   for (let i=0; i < numLayers; i++) {
-    let layer = {};
-    layer.width = buffer.readUInt32LE(curOffset);
+    let width = buffer.readUInt32LE(curOffset);
     curOffset += 4;
-    layer.height = buffer.readUInt32LE(curOffset);
+    let height = buffer.readUInt32LE(curOffset);
     curOffset += 4;
 
-    let raster = new Array(layer.height * layer.width);
+    let layer = new Layer(width, height);
     for (let x = 0; x < layer.width; x++) {
       for (let y = 0; y < layer.height; y++) {
         let pixel = {};
@@ -70,25 +65,122 @@ function loadInflatedBuffer(buffer) {
         b = buffer.readUInt8(curOffset++);
         let bg = new Color(r, g, b);
 
-        raster[x + layer.width * y] = new Pixel(fg, bg, asciiCode);
+        layer.set(x, y, new Pixel(fg, bg, asciiCode));
       }
     }
 
-    layer.raster = raster;
     res.layers.push(layer);
   }
 
   return res;
 }
 
+class Image {
+  constructor(version, numLayers) {
+    this.version = version;
+    this.layers = [];
+  }
+
+  /**
+    Sets the pixel on the `l`-th layer at `x`, `y`.
+    Expects `l`, `x` and `y` to be positive integers and `pixel` to be a `Pixel` instance.
+    Returns false if any of the above conditions isn't met, otherwise returns true and sets the corresponding pixel.
+  **/
+  set(l, x, y, pixel) {
+    if (typeof l === "number" && this.layers[l]) {
+      return this.layers[l].set(x, y, pixel);
+    } else {
+      return false;
+    }
+  }
+
+  /**
+    Gets the pixel on the `l`-th layer at `x`, `y`.
+    Returns null if the coordinates were out of bound.
+  **/
+  get(l, x, y) {
+    if (typeof l === "number" && this.layers[l]) {
+      return this.layers[l].get(x, y);
+    } else {
+      return null;
+    }
+  }
+}
+
+class Layer {
+  constructor(width, height) {
+    this.width = width;
+    this.height = height;
+
+    this.raster = new Array(width * height);
+  }
+
+  /**
+    Verifies that `(x, y)` are valid pixel coordinates.
+  **/
+  verifyCoordinates(x, y) {
+    return Number.isInteger(x)
+      && Number.isInteger(y)
+      && x >= 0
+      && x < this.width
+      && y >= 0
+      && y < this.height;
+  }
+
+  /**
+    Sets the pixel at `x`, `y` to `pixel`.
+    Expects that `(x, y)` are valid coordinates and that `pixel` is an instance of `Pixel`.
+    Returns false if any of the above conditions isn't met, otherwise returns true and sets the corresponding pixel.
+  **/
+  set(x, y, pixel) {
+    if (this.verifyCoordinates(x, y) && pixel instanceof Pixel) {
+      this.raster[x + this.width * y] = pixel;
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /**
+    Returns the pixel at `(x, y)`.
+    Returns null if the coordinates are out of bound.
+  **/
+  get(x, y) {
+    if (this.verifyCoordinates(x, y)) {
+      return this.raster[x + this.width * y];
+    } else {
+      return null;
+    }
+  }
+}
+
 class Pixel {
+  /**
+    Creates a new Pixel instance.
+    Expects `fg` and `bg` to be instances of `Color`.
+    Expects `char` to be a character integer.
+  **/
   constructor(fg, bg, char) {
-    this.fg = fg;
-    this.bg = bg;
+    if (fg instanceof Color) {
+      this.fg = fg;
+    } else {
+      throw new Error("Invalid argument: expected `fg` to be a Color, got " + fg);
+    }
+
+    if (bg instanceof Color) {
+      this.bg = bg;
+    } else {
+      throw new Error("Invalid argument: expected `fg` to be a Color, got " + fg);
+    }
+
     this.transparent = this.bg.r === 255 && this.bg.g === 0 && this.bg.b === 255;
 
     if (typeof char === "number") {
-      this.asciiCode = char;
+      if (Number.isInteger(char) && char >= 0 && char <= 255) {
+        this.asciiCode = char;
+      } else {
+        throw new Error("Invalid character code: expected integer from 0 to 255, got " + char);
+      }
     } else {
       throw new Error("Invalid argument: expected `char` to be a number, got " + typeof char);
     }
@@ -96,14 +188,22 @@ class Pixel {
 }
 
 class Color {
+  /**
+    Creates a new Color instance.
+    Expects `r`, `g` and `b` to be integers from 0 to 255.
+  **/
   constructor(r, g, b) {
-    this.r = r;
-    this.g = g;
-    this.b = b;
+    this.r = +r;
+    this.g = +g;
+    this.b = +b;
+
+    if (!Number.isInteger(this.r) || this.r < 0 || this.r > 255) throw new Error(`Expected 'r' to be a positive integer, got ${r}`);
+    if (!Number.isInteger(this.g) || this.g < 0 || this.g > 255) throw new Error(`Expected 'g' to be a positive integer, got ${g}`);
+    if (!Number.isInteger(this.b) || this.b < 0 || this.b > 255) throw new Error(`Expected 'b' to be a positive integer, got ${b}`);
+
     this.hex = rgb2hex(r, g, b);
   }
 }
-
 
 function rgb2hex(r, g, b) {
     let sr = r.toString(16);
@@ -127,3 +227,7 @@ function rgb2hex(r, g, b) {
 
 module.exports = fromBuffer;
 module.exports.fromBuffer = fromBuffer;
+module.exports.Color = Color;
+module.exports.Pixel = Pixel;
+module.exports.Layer = Layer;
+module.exports.Image = Image;
