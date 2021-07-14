@@ -16,6 +16,10 @@
 
 const zlib = require('zlib');
 
+/**
+  Parses the given buffer as a REXPaint image, calling `callback` if it is set and returning a Promise otherwise.
+  The promise/callback will receive an `Image` instance with the corresponding image data.
+**/
 function fromBuffer(buffer, callback) {
   let p = new Promise((resolve, reject) => {
     zlib.unzip(buffer, (err, inflated) => {
@@ -26,13 +30,37 @@ function fromBuffer(buffer, callback) {
       } catch (e) {
         reject(e);
       }
-    })
-  })
+    });
+  });
 
-  if (!callback) {
-    return p;
-  } else {
+  if (callback) {
     p.then(res => callback(null, res)).catch(e => callback(e));
+  } else {
+    return p;
+  }
+}
+
+/**
+  Exports the given `Image` instance as a REXPaint .xp file, calling `callback` if it is set and returning a Promise otherwise.
+  The promise/callback will receive a `Buffer` with the exported, gzipped data.
+**/
+function toBuffer(image, callback) {
+  if (!(image instanceof Image)) {
+    throw new Error("Expected 'image' to be an instance of Image, got " + image);
+  }
+
+  let p = new Promise((resolve, reject) => {
+    let res = writeInflatedBuffer(image);
+    zlib.gzip(res, (err, deflated) => {
+      if (err) reject(err);
+      resolve(deflated);
+    });
+  });
+
+  if (callback) {
+    p.then(res => callback(null, res)).catch(e => callback(e));
+  } else {
+    return p;
   }
 }
 
@@ -41,28 +69,28 @@ function loadInflatedBuffer(buffer) {
   let res = new Image(version);
 
   let numLayers = buffer.readUInt32LE(4);
-  let curOffset = 8;
+  let offset = 8;
   for (let i=0; i < numLayers; i++) {
-    let width = buffer.readUInt32LE(curOffset);
-    curOffset += 4;
-    let height = buffer.readUInt32LE(curOffset);
-    curOffset += 4;
+    let width = buffer.readUInt32LE(offset);
+    offset += 4;
+    let height = buffer.readUInt32LE(offset);
+    offset += 4;
 
     let layer = new Layer(width, height);
     for (let x = 0; x < layer.width; x++) {
       for (let y = 0; y < layer.height; y++) {
         let pixel = {};
-        let asciiCode = buffer.readUInt32LE(curOffset);
-        curOffset += 4;
+        let asciiCode = buffer.readUInt32LE(offset);
+        offset += 4;
 
-        let r = buffer.readUInt8(curOffset++);
-        let g = buffer.readUInt8(curOffset++);
-        let b = buffer.readUInt8(curOffset++);
+        let r = buffer.readUInt8(offset++);
+        let g = buffer.readUInt8(offset++);
+        let b = buffer.readUInt8(offset++);
         let fg = new Color(r, g, b);
 
-        r = buffer.readUInt8(curOffset++);
-        g = buffer.readUInt8(curOffset++);
-        b = buffer.readUInt8(curOffset++);
+        r = buffer.readUInt8(offset++);
+        g = buffer.readUInt8(offset++);
+        b = buffer.readUInt8(offset++);
         let bg = new Color(r, g, b);
 
         layer.set(x, y, new Pixel(fg, bg, asciiCode));
@@ -70,6 +98,48 @@ function loadInflatedBuffer(buffer) {
     }
 
     res.layers.push(layer);
+  }
+
+  return res;
+}
+
+function writeInflatedBuffer(image) {
+  const PIXEL_SIZE = 10;
+  let size = 8;
+  for (let layer of image.layers) {
+    size += 8 + PIXEL_SIZE * layer.width * layer.height;
+  }
+  let res = Buffer.alloc(size, 0);
+
+  res.writeUInt32LE(image.version, 0);
+  res.writeUInt32LE(image.layers.length, 4);
+
+  let offset = 8;
+  for (let layer of image.layers) {
+    res.writeUInt32LE(layer.width, offset);
+    offset += 4;
+    res.writeUInt32LE(layer.height, offset);
+    offset += 4;
+
+    for (let x = 0; x < layer.width; x++) {
+      for (let y = 0; y < layer.height; y++) {
+        let pixel = layer.get(x, y);
+        res.writeUInt32LE(pixel.asciiCode, offset);
+        offset += 4;
+
+        res.writeUInt8(pixel.fg.r, offset++);
+        res.writeUInt8(pixel.fg.g, offset++);
+        res.writeUInt8(pixel.fg.b, offset++);
+
+        res.writeUInt8(pixel.bg.r, offset++);
+        res.writeUInt8(pixel.bg.g, offset++);
+        res.writeUInt8(pixel.bg.b, offset++);
+      }
+    }
+  }
+
+  if (offset != size) {
+    throw new Error("Internal error: expected offset to match size!");
   }
 
   return res;
@@ -267,6 +337,7 @@ function rgb2hex(r, g, b) {
 
 module.exports = fromBuffer;
 module.exports.fromBuffer = fromBuffer;
+module.exports.toBuffer = toBuffer;
 module.exports.Color = Color;
 module.exports.Pixel = Pixel;
 module.exports.Layer = Layer;

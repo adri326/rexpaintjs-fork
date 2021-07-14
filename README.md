@@ -1,7 +1,7 @@
 # rexpaintjs-fork
 
 A fork of `rexpaintjs`, a simple library to load REXPaint "XP" files as plain javascript objects.
-This fork aims to improve upon `rexpaintjs`, by adding more checks and features.
+This fork aims to improve upon `rexpaintjs`, by adding more checks and features, including the ability to export images.
 
 ## Usage
 
@@ -18,6 +18,8 @@ const rexpaintjs = require('rexpaintjs-fork');
 ```
 
 The fork works as a drop-in replacement: any code working with `rexpaintjs` will work with `rexpaintjs-fork` too.
+
+### Reading from a file
 
 To load a REXPaint file, you may do the following:
 
@@ -44,6 +46,8 @@ async function myFunction() {
   // You can now use `data` here!
 }
 ```
+
+### Internal data structure
 
 The `data` object in these two examples will be an `Image` instance. It is of the form:
 
@@ -85,6 +89,59 @@ Layer::get(x, y) // returns the pixel at `(x, y)`
 Layer::set(x, y, pixel) // sets the pixel at `(x, y)`
 ```
 
+### Writing
+
+This fork includes a function to export an `Image` instance as a REXPaint XP file.
+To do so, simply call `rexpaint.toBuffer(image [, callback])` with as argument your image:
+
+```js
+const fs = require("fs");
+
+let buffer = fs.readFileSync("your_file.xp");
+
+// Callback method
+rexpaint(buffer, (err, data) => {
+  if (err) {
+    throw new Error(err);
+  }
+
+  // Modify the image a bit:
+  data.set(0, 1, 1, new rexpaint.Pixel(
+    new rexpaint.Color(255, 16, 16),
+    new rexpaint.Color(0, 0, 0),
+    1 // ☺
+  ));
+
+  // Export
+  rexpaint.toBuffer(data, (err, exported) => {
+    if (err) {
+      throw new Error(err);
+    }
+
+    // Write to file
+    fs.writeFileSync("your_new_file.xp", exported);
+  });
+});
+
+// Async method
+let buffer = fs.readFileSync("your_file.xp");
+async function myFunction() {
+  let data = await rexpaint(buffer);
+
+  // Modify the image a bit:
+  data.set(0, 1, 1, new rexpaint.Pixel(
+    new rexpaint.Color(255, 16, 16),
+    new rexpaint.Color(0, 0, 0),
+    1 // ☺
+  ));
+
+  // Export
+  let exported = await rexpaint.toBuffer(data);
+
+  // Write to file
+  fs.writeFileSync("your_new_file.xp", exported);
+}
+```
 
 ## License
 
