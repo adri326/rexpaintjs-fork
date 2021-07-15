@@ -77,16 +77,29 @@ class Color {
 }
 ```
 
-Additionally, the different classes feature some useful methods.
+Additionally, the different classes feature some useful methods and constants.
 You should refer to [their in-code documentation](https://github.com/adri326/rexpaintjs-fork/blob/master/index.js) for their full behavior:
 
 ```rs
 Image::get(l, x, y) // returns the `(x, y)` pixel of the layer `l`
 Image::set(l, x, y, pixel) // sets the `(x, y)` pixel of the layer `l`
+Image::mergeLayers(layers) // merges different layers, with `layers` being an array of indices, a single index or "all"
 
 Layer::verifyCoordinates(x, y) // returns true if `(x, y)` are valid pixel coordinates for that layer
 Layer::get(x, y) // returns the pixel at `(x, y)`
 Layer::set(x, y, pixel) // sets the pixel at `(x, y)`
+Layer::fill(pixel) // fills a layer with the pixel `pixel`
+Layer.from(layer) // clones a layer
+
+new Pixel(code, foreground, background) // creates a new Pixel, foreground and background should be Color instances
+Pixel.from(pixel) // clones a pixel
+Pixel.from([code, foreground, background]) // faster way to create a new Pixel, as foreground and background are passed to Color.from
+Pixel.TRANSPARENT // the transparent pixel, will be interpreted as transparent by Image::mergeLayers
+
+new Color(red, green, blue) // creates a new Color
+Color.from(color) // clones a color
+Color.from([red, green, blue]) // creates a new Color from the red, green and blue components
+Color.from("rrggbb") // creates a new Color from a hex string, with `rr` the red channel, `gg` the green channel and `bb` the blue channel
 ```
 
 ### Writing
@@ -99,7 +112,7 @@ const fs = require("fs");
 
 let buffer = fs.readFileSync("your_file.xp");
 
-// Callback method
+// === Callback method ===
 rexpaint(buffer, (err, data) => {
   if (err) {
     throw new Error(err);
@@ -107,9 +120,9 @@ rexpaint(buffer, (err, data) => {
 
   // Modify the image a bit:
   data.set(0, 1, 1, new rexpaint.Pixel(
-    new rexpaint.Color(255, 16, 16),
-    new rexpaint.Color(0, 0, 0),
-    1 // ☺
+    1, // ☺
+    new rexpaint.Color(255, 16, 16), // Foreground: bright red
+    new rexpaint.Color(0, 0, 0), // Background: black
   ));
 
   // Export
@@ -123,17 +136,12 @@ rexpaint(buffer, (err, data) => {
   });
 });
 
-// Async method
-let buffer = fs.readFileSync("your_file.xp");
+// === Async method ===
 async function myFunction() {
   let data = await rexpaint(buffer);
 
   // Modify the image a bit:
-  data.set(0, 1, 1, new rexpaint.Pixel(
-    new rexpaint.Color(255, 16, 16),
-    new rexpaint.Color(0, 0, 0),
-    1 // ☺
-  ));
+  data.set(0, 1, 1, rexpaint.Pixel.from([1, "ff1010", "000000"])); // red on black ☺
 
   // Export
   let exported = await rexpaint.toBuffer(data);

@@ -93,7 +93,7 @@ function loadInflatedBuffer(buffer) {
         b = buffer.readUInt8(offset++);
         let bg = new Color(r, g, b);
 
-        layer.set(x, y, new Pixel(fg, bg, asciiCode));
+        layer.set(x, y, new Pixel(asciiCode, fg, bg));
       }
     }
 
@@ -146,7 +146,11 @@ function writeInflatedBuffer(image) {
 }
 
 class Image {
-  constructor(version, numLayers) {
+  /**
+    Creates a new image instance, with version code `version`.
+    The initial image will be empty and will not have any layers.
+  **/
+  constructor(version) {
     this.version = version;
     this.layers = [];
   }
@@ -155,6 +159,8 @@ class Image {
     Sets the pixel on the `l`-th layer at `x`, `y`.
     Expects `l`, `x` and `y` to be positive integers and `pixel` to be a `Pixel` instance.
     Returns false if any of the above conditions isn't met, otherwise returns true and sets the corresponding pixel.
+
+    *Note: the Pixel instance will be cloned before being put in the raster.*
   **/
   set(l, x, y, pixel) {
     if (typeof l === "number" && this.layers[l]) {
@@ -167,6 +173,8 @@ class Image {
   /**
     Gets the pixel on the `l`-th layer at `x`, `y`.
     Returns null if the coordinates were out of bound.
+
+    *Note: the returned Pixel instance will not be a clone of the pixel in the raster (modifying it will modify the image).*
   **/
   get(l, x, y) {
     if (typeof l === "number" && this.layers[l]) {
@@ -175,14 +183,92 @@ class Image {
       return null;
     }
   }
+
+  /**
+    Merges different layers together, producing a single layer, similar to the multi-layer view of REXPaint.
+    The returned layer will be a clone of the topmost, non-transparent pixels.
+
+    If `layers` is equal to "all", all of the layers will be merged.
+    If `layers` is a single number `x`, it will be interpreted as `[x]`.
+    Otherwise, `layers` is interpreted as an array of layer indices. The layers will be merged in that order.
+
+    Returns null if no layers were available or were selected.
+  **/
+  mergeLayers(layers = "all") {
+    if (this.layers.length === 0) return null;
+
+    if (layers === "all") {
+      layers = new Array(this.layers.length).fill(0).map((_, i) => i);
+    } else if (Number.isInteger(layers)) {
+      if (layers >= 0 && layers < this.layers.length) {
+        layers = [layers];
+      } else {
+        layers = [];
+      }
+    } else if (Array.isArray(layers)) {
+      layers = layers.filter(l => Number.isInteger(l) && l >= 0 && l < this.layers.length);
+    } else {
+      return null;
+    }
+
+    if (layers.length === 0) return null;
+
+    let res = new Layer(this.width, this.height);
+    for (let index of layers) {
+      for (let y = 0; y < this.height; y++) {
+        for (let x = 0; x < this.width; x++) {
+          let pixel = this.get(index, x, y);
+          if (!res.get(x, y) || !pixel.transparent) {
+            res.set(x, y, Pixel.from(pixel));
+          }
+        }
+      }
+    }
+    return res;
+  }
+
+  get width() {
+    if (this.layers.length > 0) return this.layers[0].width;
+    else return null;
+  }
+
+  get height() {
+    if (this.layers.length > 0) return this.layers[0].height;
+    else return null;
+  }
 }
 
 class Layer {
+  /**
+    Creates a new Layer with dimension `width` and `height`.
+    The initial raster will be empty, consider filling it with `Layer::fill`.
+  **/
   constructor(width, height) {
     this.width = width;
     this.height = height;
 
     this.raster = new Array(width * height);
+  }
+
+  /**
+    Creates a new Layer instance from a previous Layer instance.
+
+    On failure, returns null.
+  **/
+  static from(layer) {
+    if (layer instanceof Layer) {
+      let res = new Layer(layer.width, layer.height);
+
+      for (let y = 0; y < res.height; y++) {
+        for (let x = 0; x < res.width; x++) {
+          res.set(x, y, layer.get(x, y));
+        }
+      }
+
+      return res;
+    }
+
+    return null;
   }
 
   /**
@@ -201,6 +287,8 @@ class Layer {
     Sets the pixel at `x`, `y` to `pixel`.
     Expects that `(x, y)` are valid coordinates and that `pixel` is an instance of `Pixel`.
     Returns false if any of the above conditions isn't met, otherwise returns true and sets the corresponding pixel.
+
+    *Note: the Pixel instance will be cloned before being put in the raster.*
   **/
   set(x, y, pixel) {
     if (this.verifyCoordinates(x, y) && pixel instanceof Pixel) {
@@ -214,6 +302,8 @@ class Layer {
   /**
     Returns the pixel at `(x, y)`.
     Returns null if the coordinates are out of bound.
+
+    *Note: the returned Pixel instance will not be a clone of the pixel in the raster (modifying it will modify the layer).*
   **/
   get(x, y) {
     if (this.verifyCoordinates(x, y)) {
@@ -221,6 +311,22 @@ class Layer {
     } else {
       return null;
     }
+  }
+
+  /**
+    Fills a layer with the given pixel.
+    Returns the current Layer instance.
+
+    *Note: the Pixel instance will be cloned before being put in the raster.*
+  **/
+  fill(pixel = Pixel.TRANSPARENT) {
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        this.set(x, y, pixel);
+      }
+    }
+
+    return this;
   }
 }
 
@@ -230,7 +336,7 @@ class Pixel {
     Expects `fg` and `bg` to be instances of `Color`.
     Expects `char` to be a character integer.
   **/
-  constructor(fg, bg, char) {
+  constructor(char, fg, bg) {
     if (fg instanceof Color) {
       this.fg = fg;
     } else {
@@ -246,14 +352,37 @@ class Pixel {
     this.transparent = this.bg.r === 255 && this.bg.g === 0 && this.bg.b === 255;
 
     if (typeof char === "number") {
-      if (Number.isInteger(char) && char >= 0 && char <= 255) {
+      if (Number.isInteger(char) && char >= 0) {
         this.asciiCode = char;
       } else {
-        throw new Error("Invalid character code: expected integer from 0 to 255, got " + char);
+        throw new Error("Invalid character code: expected positive integer, got " + char);
       }
     } else {
       throw new Error("Invalid argument: expected `char` to be a number, got " + typeof char);
     }
+  }
+
+  /**
+    Creates a new Pixel instance from an existing Pixel instance or an array containing the foreground, background and ascii code.
+
+    If the `pixel` is an array, it will be interpreted as `[asciiCode, foregroundColor, backgroundColor]`.
+
+    On failure, returns null.
+  **/
+  static from(pixel) {
+    if (pixel instanceof Pixel) {
+      return new Pixel(pixel.asciiCode, Color.from(pixel.fg), Color.from(pixel.bg));
+    } else if (Array.isArray(pixel) && pixel.length === 3 && Number.isInteger(pixel[0]) && pixel[0] >= 0) {
+      let fg = Color.from(pixel[1]);
+      if (fg === null) return null;
+
+      let bg = Color.from(pixel[2]);
+      if (bg === null) return null;
+
+      return new Pixel(pixel[0], fg, bg);
+    }
+
+    return null;
   }
 }
 
@@ -270,6 +399,34 @@ class Color {
     if (!Number.isInteger(this._r) || this._r < 0 || this._r > 255) throw new Error(`Expected 'r' to be a positive integer, got ${r}`);
     if (!Number.isInteger(this._g) || this._g < 0 || this._g > 255) throw new Error(`Expected 'g' to be a positive integer, got ${g}`);
     if (!Number.isInteger(this._b) || this._b < 0 || this._b > 255) throw new Error(`Expected 'b' to be a positive integer, got ${b}`);
+  }
+
+  /**
+    Creates a new Color instance from an existing Color instance, an RGB array or a hex color string.
+
+    If `color` is an RGB array, it will be interpreted as an array of 3 integers (floating numbers will be rounded down), representing the R, G and B channel.
+    The numerical values have to be between 0 and 255.
+
+    If `color` is an RGB hex color string, it will be parsed as such.
+
+    On failure, returns null.
+  **/
+  static from(color) {
+    if (color instanceof Color) {
+      return new Color(color._r, color._g, color._b);
+    } else if (Array.isArray(color) && color.length == 3 && color.all(x => typeof x === "number")) {
+      return new Color(Math.floor(color[0]), Math.floor(color[1]), Math.floor(color[2]));
+    } else if (typeof color === "string") {
+      let match = /^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(color);
+      if (match) {
+        let r = Number.parseInt(match[1], 16);
+        let g = Number.parseInt(match[2], 16);
+        let b = Number.parseInt(match[3], 16);
+        return new Color(r, g, b);
+      }
+    }
+
+    return null;
   }
 
   get r() {
@@ -343,6 +500,8 @@ function rgb2hex(r, g, b) {
 
     return sr + sg + sb;
 }
+
+Pixel.TRANSPARENT = new Pixel(32, new Color(0, 0, 0), new Color(255, 0, 255));
 
 module.exports = fromBuffer;
 module.exports.fromBuffer = fromBuffer;
