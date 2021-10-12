@@ -84,6 +84,8 @@ You should refer to [their in-code documentation](https://github.com/adri326/rex
 Image::get(l, x, y) // returns the `(x, y)` pixel of the layer `l`
 Image::set(l, x, y, pixel) // sets the `(x, y)` pixel of the layer `l`
 Image::mergeLayers(layers) // merges different layers, with `layers` being an array of indices, a single index or "all"
+Image::width // the width of the first layer, null if the image has no layer
+Image::height // the height of the first layer, null if the image has no layer
 
 Layer::verifyCoordinates(x, y) // returns true if `(x, y)` are valid pixel coordinates for that layer
 Layer::get(x, y) // returns the pixel at `(x, y)`
