@@ -99,6 +99,7 @@ Pixel.from([code, foreground, background]) // faster way to create a new Pixel, 
 Pixel.TRANSPARENT // the transparent pixel, will be interpreted as transparent by Image::mergeLayers
 Pixel::unicodeChar // the unicode character associated with that pixel
 Pixel::ansiString // the ANSI string for that pixel: contains the ANSI escape code for the foreground and background colors and the unicode character for the pixel
+Pixel::transparent // true if the background of the pixel is magenta (#ff00ff)
 
 new Color(red, green, blue) // creates a new Color
 Color.from(color) // clones a color
