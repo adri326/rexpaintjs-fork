@@ -454,7 +454,7 @@ class Color {
   static from(color) {
     if (color instanceof Color) {
       return new Color(color._r, color._g, color._b);
-    } else if (Array.isArray(color) && color.length == 3 && color.all(x => typeof x === "number")) {
+    } else if (Array.isArray(color) && color.length == 3 && color.every(x => typeof x === "number")) {
       return new Color(Math.floor(color[0]), Math.floor(color[1]), Math.floor(color[2]));
     } else if (typeof color === "string") {
       let match = /^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(color);

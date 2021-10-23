@@ -1,6 +1,6 @@
 {
   "name": "rexpaintjs-fork",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "A fork of rexpaintjs, a library to load REXPaint ascii-art files, with more features, including writing REXPaint files",
   "main": "index.js",
   "scripts": {
