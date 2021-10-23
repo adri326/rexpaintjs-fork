@@ -261,7 +261,7 @@ class Layer {
 
       for (let y = 0; y < res.height; y++) {
         for (let x = 0; x < res.width; x++) {
-          res.set(x, y, layer.get(x, y));
+          res.set(x, y, Pixel.from(layer.get(x, y)));
         }
       }
 
@@ -349,8 +349,6 @@ class Pixel {
       throw new Error("Invalid argument: expected `fg` to be a Color, got " + fg);
     }
 
-    this.transparent = this.bg.r === 255 && this.bg.g === 0 && this.bg.b === 255;
-
     if (typeof char === "number") {
       if (Number.isInteger(char) && char >= 0) {
         this.asciiCode = char;
@@ -409,6 +407,22 @@ class Pixel {
     let char = this.unicodeChar;
 
     return foreground + background + char;
+  }
+
+  /**
+    Returns true if the background has as color magenta (#ff00ff).
+  **/
+  get transparent() {
+    return this.bg.r === 255 && this.bg.g === 0 && this.bg.b === 255;
+  }
+
+  toJSON() {
+    return {
+      asciiCode: this.asciiCode,
+      fg: this.fg.toJSON(),
+      bg: this.bg.toJSON(),
+      transparent: this.transparent
+    };
   }
 }
 

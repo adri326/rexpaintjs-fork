@@ -19,18 +19,18 @@ rexpaintjs.fromBuffer(fs.readFileSync('test.xp'), (err, data) => {
           let cell = layer.raster[x + y * layer.width]
 
           if (cell) {
-            /*if (cell.transparent) {
-              row += ' '
-            } else {*/
+            if (cell.transparent) {
+              row += '\x1b[0m '
+            } else {
               let c = String.fromCharCode(cell.asciiCode)
-              row += c
-            //}
+              row += cell.ansiString
+            }
           } else {
             cell += ' '
           }
         }
 
-        console.log(row)
+        console.log(row + "\x1b[0m")
       }
     }
   }
