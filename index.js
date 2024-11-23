@@ -17,9 +17,25 @@
 const zlib = require('zlib');
 
 /**
-  Parses the given buffer as a REXPaint image, calling `callback` if it is set and returning a Promise otherwise.
-  The promise/callback will receive an `Image` instance with the corresponding image data.
-**/
+ * @overload
+ * @param {Buffer} buffer
+ * @param {(image: Image) => void} callback
+ * @returns {void}
+ */
+/**
+ * @overload
+ * @param {Buffer} buffer
+ * @returns {Promise<Image>}
+ */
+/**
+ * Parses the given buffer as a REXPaint image, calling `callback` if it is set and returning a Promise otherwise.
+ * The promise/callback will receive an `Image` instance with the corresponding image data.
+ *
+ * @overload
+ * @param {Buffer} buffer
+ * @param {(image: Image) => void} [callback]
+ * @returns {Promise<Image> | undefined}
+ */
 function fromBuffer(buffer, callback) {
   let p = new Promise((resolve, reject) => {
     zlib.unzip(buffer, (err, inflated) => {
@@ -41,9 +57,24 @@ function fromBuffer(buffer, callback) {
 }
 
 /**
-  Exports the given `Image` instance as a REXPaint .xp file, calling `callback` if it is set and returning a Promise otherwise.
-  The promise/callback will receive a `Buffer` with the exported, gzipped data.
-**/
+ * @overload
+ * @param {Image} image
+ * @returns {Promise<Buffer>}
+ */
+/**
+ * @param {Image} image
+ * @param {(encoded: Buffer) => void} callback
+ * @returns {void}
+ */
+/**
+ * Exports the given `Image` instance as a REXPaint .xp file, calling `callback` if it is set and returning a Promise otherwise.
+ * The promise/callback will receive a `Buffer` with the exported, gzipped data.
+ *
+ * @overload
+ * @param {Image} image
+ * @param {(encoded: Buffer) => void} [callback]
+ * @returns {Promise<Buffer> | void}
+ */
 function toBuffer(image, callback) {
   if (!(image instanceof Image)) {
     throw new Error("Expected 'image' to be an instance of Image, got " + image);
@@ -145,10 +176,17 @@ function writeInflatedBuffer(image) {
   return res;
 }
 
+/**
+ * @typedef {"all" | number | number[] | null | undefined} LayerOption
+ * The option passed to {@link Image.mergeLayers} to control which layers of an {@link Image}
+ * will get squashed down into a single {@link Layer}.
+ */
+
 class Image {
   /**
     Creates a new image instance, with version code `version`.
     The initial image will be empty and will not have any layers.
+    @param {number} [version]
   **/
   constructor(version) {
     this.version = version;
@@ -161,6 +199,11 @@ class Image {
     Returns false if any of the above conditions isn't met, otherwise returns true and sets the corresponding pixel.
 
     *Note: the Pixel instance will be cloned before being put in the raster.*
+
+    @param {number} l The layer to draw on.
+    @param {number} x The column of the pixel to draw.
+    @param {number} y The row of the pixel to draw.
+    @param {Pixel} pixel The pixel to draw.
   **/
   set(l, x, y, pixel) {
     if (typeof l === "number" && this.layers[l]) {
@@ -175,6 +218,11 @@ class Image {
     Returns null if the coordinates were out of bound.
 
     *Note: the returned Pixel instance will not be a clone of the pixel in the raster (modifying it will modify the image).*
+
+    @param {number} l The layer to get the pixel from.
+    @param {number} x The column of the pixel to retrieve.
+    @param {number} y The row of the pixel to retrieve.
+    @returns {Pixel | null}
   **/
   get(l, x, y) {
     if (typeof l === "number" && this.layers[l]) {
@@ -193,6 +241,9 @@ class Image {
     Otherwise, `layers` is interpreted as an array of layer indices. The layers will be merged in that order.
 
     Returns null if no layers were available or were selected.
+
+    @param {LayerOption} layers
+    @returns {Layer | null}
   **/
   mergeLayers(layers = "all") {
     if (this.layers.length === 0) return null;
@@ -227,11 +278,17 @@ class Image {
     return res;
   }
 
+  /**
+   * @returns {number}
+   */
   get width() {
     if (this.layers.length > 0) return this.layers[0].width;
     else return null;
   }
 
+  /**
+   * @returns {number}
+   */
   get height() {
     if (this.layers.length > 0) return this.layers[0].height;
     else return null;
@@ -242,6 +299,9 @@ class Layer {
   /**
     Creates a new Layer with dimension `width` and `height`.
     The initial raster will be empty, consider filling it with `Layer::fill`.
+
+    @param {number} width
+    @param {number} height
   **/
   constructor(width, height) {
     this.width = width;
@@ -254,6 +314,9 @@ class Layer {
     Creates a new Layer instance from a previous Layer instance.
 
     On failure, returns null.
+
+    @param {Layer} layer
+    @returns {Layer}
   **/
   static from(layer) {
     if (layer instanceof Layer) {
@@ -273,6 +336,10 @@ class Layer {
 
   /**
     Verifies that `(x, y)` are valid pixel coordinates.
+
+    @param {number} x
+    @param {number} y
+    @returns {boolean}
   **/
   verifyCoordinates(x, y) {
     return Number.isInteger(x)
@@ -289,6 +356,11 @@ class Layer {
     Returns false if any of the above conditions isn't met, otherwise returns true and sets the corresponding pixel.
 
     *Note: the Pixel instance will be cloned before being put in the raster.*
+
+    @param {number} x
+    @param {number} y
+    @param {Pixel} pixel
+    @returns {boolean}
   **/
   set(x, y, pixel) {
     if (this.verifyCoordinates(x, y) && pixel instanceof Pixel) {
@@ -304,6 +376,10 @@ class Layer {
     Returns null if the coordinates are out of bound.
 
     *Note: the returned Pixel instance will not be a clone of the pixel in the raster (modifying it will modify the layer).*
+
+    @param {number} x
+    @param {number} y
+    @returns {Pixel | null}
   **/
   get(x, y) {
     if (this.verifyCoordinates(x, y)) {
@@ -318,6 +394,7 @@ class Layer {
     Returns the current Layer instance.
 
     *Note: the Pixel instance will be cloned before being put in the raster.*
+    @param {Pixel} [pixel]
   **/
   fill(pixel = Pixel.TRANSPARENT) {
     for (let y = 0; y < this.height; y++) {
@@ -335,6 +412,10 @@ class Pixel {
     Creates a new Pixel instance.
     Expects `fg` and `bg` to be instances of `Color`.
     Expects `char` to be a character integer.
+
+    @param {number} char
+    @param {Color} fg
+    @param {Color} bg
   **/
   constructor(char, fg, bg) {
     if (fg instanceof Color) {
@@ -366,6 +447,8 @@ class Pixel {
     If the `pixel` is an array, it will be interpreted as `[asciiCode, foregroundColor, backgroundColor]`.
 
     On failure, returns null.
+    @param {Pixel} pixel
+    @returns {Pixel}
   **/
   static from(pixel) {
     if (pixel instanceof Pixel) {
@@ -386,6 +469,7 @@ class Pixel {
   /**
     Returns the unicode char associated with `this.asciiCode`, if `this.asciiCode ∈ [0; 255]`.
     Interprets `this.asciiCode` as a CP437 character code.
+    @returns {string}
   **/
   get unicodeChar() {
     if (this.asciiCode >= 0 && this.asciiCode <= 255) {
@@ -400,6 +484,8 @@ class Pixel {
     The returned string contains the ANSI escape code for the foreground and background colors and the unicode character associated to `this.asciiCode` (interpreted as a CP437 character code).
 
     The returned string does not clear the color afterwards!
+
+    @returns {string}
   **/
   get ansiString() {
     let foreground = `\x1b[38;2;${this.fg._r};${this.fg._g};${this.fg._b}m`;
@@ -411,11 +497,15 @@ class Pixel {
 
   /**
     Returns true if the background has as color magenta (#ff00ff).
+    @returns {boolean}
   **/
   get transparent() {
     return this.bg.r === 255 && this.bg.g === 0 && this.bg.b === 255;
   }
 
+  /**
+   * @returns {Object}
+   */
   toJSON() {
     return {
       asciiCode: this.asciiCode,
@@ -430,6 +520,10 @@ class Color {
   /**
     Creates a new Color instance.
     Expects `r`, `g` and `b` to be integers from 0 to 255.
+
+    @param {number} r
+    @param {number} g
+    @param {number} b
   **/
   constructor(r, g, b) {
     this._r = +r;
@@ -450,6 +544,9 @@ class Color {
     If `color` is an RGB hex color string, it will be parsed as such.
 
     On failure, returns null.
+
+    @param {Color} color
+    @returns {Color}
   **/
   static from(color) {
     if (color instanceof Color) {
@@ -469,37 +566,63 @@ class Color {
     return null;
   }
 
+  /**
+   * @returns {number}
+   */
   get r() {
     return this._r;
   }
 
+  /**
+   * @param {number} value
+   */
   set r(value) {
     this._r = +value;
     if (!Number.isInteger(this._r) || this._r < 0 || this._r > 255) throw new Error(`Expected 'r' to be a positive integer, got ${value}`);
   }
 
+  /**
+   * @returns {number}
+   */
+
   get g() {
     return this._g;
   }
 
+  /**
+   * @param {number} value
+   */
   set g(value) {
     this._g = +value;
     if (!Number.isInteger(this._g) || this._g < 0 || this._g > 255) throw new Error(`Expected 'g' to be a positive integer, got ${value}`);
   }
 
+  /**
+   * @returns {number}
+   */
+
   get b() {
     return this._b;
   }
 
+  /**
+   * @param {number} value
+   */
   set b(value) {
     this._b = +value;
     if (!Number.isInteger(this._b) || this._b < 0 || this._b > 255) throw new Error(`Expected 'b' to be a positive integer, got ${value}`);
   }
 
+  /**
+   * @returns {string}
+   */
   get hex() {
     return rgb2hex(this._r, this._g, this._b);
   }
 
+  /**
+   * @param {string}
+   */
   set hex(value) {
     if (typeof value === "string") {
       let match = /^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(value);
@@ -511,6 +634,9 @@ class Color {
     }
   }
 
+  /**
+   * @returns {Object}
+   */
   toJSON() {
     return {
       g: this._g,
@@ -561,6 +687,7 @@ Pixel.UNICODE_TABLE = [
   '≡', '±', '≥', '≤', '⌠', '⌡', '÷', '≈', '°', '∙', '·', '√', 'ⁿ', '²', '■', '□'
 ];
 
+/** @type {Pixel} */
 Pixel.TRANSPARENT = new Pixel(32, new Color(0, 0, 0), new Color(255, 0, 255));
 
 module.exports = fromBuffer;
